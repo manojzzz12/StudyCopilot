@@ -5,9 +5,9 @@ const app = express();
 
 app.use(cors());
 
-app.get("/", (req, res) => {
+app.get("/api/message", (req, res) => {
   res.json({
-    message: "StudyCopilot Backend Running"
+    message: "Hello from StudyCopilot Backend!",
   });
 });
 
