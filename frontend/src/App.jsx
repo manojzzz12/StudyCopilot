@@ -5,6 +5,7 @@ function App() {
   const [message, setMessage] = useState("Checking backend...");
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
+  const [pdfFile, setPdfFile] = useState(null);
 
   useEffect(() => {
     fetch("http://localhost:5000/api/message")
@@ -34,12 +35,52 @@ function App() {
     }
   };
 
+  const handleUpload = async () => {
+    try {
+      if (!pdfFile) {
+        alert("Please select a PDF first");
+        return;
+      }
+
+      const formData = new FormData();
+
+      formData.append("pdf", pdfFile);
+
+      const response = await fetch(
+        "http://localhost:5000/api/upload",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+
+      alert(data.message);
+    } catch (error) {
+      console.error(error);
+      alert("Upload failed");
+    }
+  };
+
   return (
     <div className="container">
       <h1>📚 StudyCopilot</h1>
 
       <div className="card">
-        <button>Upload PDF</button>
+        <h3>Upload Study Material</h3>
+
+        <input
+          type="file"
+          accept=".pdf"
+          onChange={(e) => setPdfFile(e.target.files[0])}
+        />
+
+        <button onClick={handleUpload}>
+          Upload PDF
+        </button>
+
+        <hr />
 
         <input
           type="text"
@@ -48,7 +89,9 @@ function App() {
           onChange={(e) => setQuestion(e.target.value)}
         />
 
-        <button onClick={handleSend}>Send</button>
+        <button onClick={handleSend}>
+          Send
+        </button>
 
         <p>
           <strong>Backend Status:</strong> {message}
