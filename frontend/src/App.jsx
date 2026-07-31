@@ -5,7 +5,13 @@ function App() {
   const [message, setMessage] = useState("Checking backend...");
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
+
   const [pdfFile, setPdfFile] = useState(null);
+
+  const [totalDocuments, setTotalDocuments] = useState(0);
+  const [totalChunks, setTotalChunks] = useState(0);
+  const [totalEmbeddings, setTotalEmbeddings] = useState(0);
+  const [firstChunk, setFirstChunk] = useState("");
 
   useEffect(() => {
     fetch("http://localhost:5000/api/message")
@@ -13,6 +19,39 @@ function App() {
       .then((data) => setMessage(data.message))
       .catch(() => setMessage("Backend not connected"));
   }, []);
+
+  const handleUpload = async () => {
+    try {
+      if (!pdfFile) {
+        alert("Please select a PDF first.");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("pdf", pdfFile);
+
+      const response = await fetch("http://localhost:5000/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert(data.message);
+
+        setTotalDocuments(data.totalDocuments);
+        setTotalChunks(data.totalChunks);
+        setTotalEmbeddings(data.totalEmbeddings);
+        setFirstChunk(data.firstChunk);
+      } else {
+        alert(data.message);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Upload failed.");
+    }
+  };
 
   const handleSend = async () => {
     try {
@@ -27,39 +66,10 @@ function App() {
       });
 
       const data = await response.json();
-
       setAnswer(data.answer);
     } catch (error) {
       console.error(error);
       setAnswer("Failed to contact backend");
-    }
-  };
-
-  const handleUpload = async () => {
-    try {
-      if (!pdfFile) {
-        alert("Please select a PDF first");
-        return;
-      }
-
-      const formData = new FormData();
-
-      formData.append("pdf", pdfFile);
-
-      const response = await fetch(
-        "http://localhost:5000/api/upload",
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
-
-      const data = await response.json();
-
-      alert(data.message);
-    } catch (error) {
-      console.error(error);
-      alert("Upload failed");
     }
   };
 
@@ -68,7 +78,7 @@ function App() {
       <h1>📚 StudyCopilot</h1>
 
       <div className="card">
-        <h3>Upload Study Material</h3>
+        <h2>Upload Study Material</h2>
 
         <input
           type="file"
@@ -76,11 +86,30 @@ function App() {
           onChange={(e) => setPdfFile(e.target.files[0])}
         />
 
-        <button onClick={handleUpload}>
-          Upload PDF
-        </button>
+        <button onClick={handleUpload}>Upload PDF</button>
 
         <hr />
+
+        <h3>Total Documents: {totalDocuments}</h3>
+        <h3>Total Chunks: {totalChunks}</h3>
+        <h3>Total Embeddings: {totalEmbeddings}</h3>
+
+        <h3>First Chunk</h3>
+
+        <textarea
+          value={firstChunk}
+          readOnly
+          rows={12}
+          style={{
+            width: "100%",
+            padding: "10px",
+            resize: "vertical",
+          }}
+        />
+
+        <hr />
+
+        <h2>Ask a Question</h2>
 
         <input
           type="text"
@@ -89,9 +118,7 @@ function App() {
           onChange={(e) => setQuestion(e.target.value)}
         />
 
-        <button onClick={handleSend}>
-          Send
-        </button>
+        <button onClick={handleSend}>Send</button>
 
         <p>
           <strong>Backend Status:</strong> {message}
