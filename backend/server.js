@@ -2,12 +2,17 @@ const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
 
+const connectDB = require("./config/db");
+const Document = require("./models/Document");
+
 const { extractText } = require("./services/pdfService");
 const { chunkText } = require("./services/chunkService");
 const { generateEmbeddings } = require("./services/embeddingService");
-const documents = require("./data/documents");
 
 const app = express();
+
+// Connect to MongoDB
+connectDB();
 
 app.use(cors());
 app.use(express.json());
@@ -54,25 +59,28 @@ app.post("/api/upload", upload.single("pdf"), async (req, res) => {
     // Extract text
     const text = await extractText(filePath);
 
-    // Split into chunks
+    // Create chunks
     const chunks = chunkText(text);
 
     // Generate placeholder embeddings
     const embeddings = await generateEmbeddings(chunks);
 
-    // Store document in memory
-    documents.push({
-      id: Date.now(),
+    // Save document to MongoDB
+    const savedDocument = await Document.create({
       filename: req.file.filename,
       text,
       chunks,
       embeddings,
     });
 
+    // Count total documents in database
+    const totalDocuments = await Document.countDocuments();
+
     res.json({
       message: "PDF uploaded successfully",
-      filename: req.file.filename,
-      totalDocuments: documents.length,
+      documentId: savedDocument._id,
+      filename: savedDocument.filename,
+      totalDocuments,
       totalChunks: chunks.length,
       totalEmbeddings: embeddings.length,
       firstChunk: chunks[0],
@@ -88,5 +96,5 @@ app.post("/api/upload", upload.single("pdf"), async (req, res) => {
 
 // Start Server
 app.listen(5000, () => {
-  console.log("Server running on port 5000");
+  console.log("🚀 Server running on port 5000");
 });
