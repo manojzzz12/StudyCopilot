@@ -5,7 +5,6 @@ const cors = require("cors");
 const multer = require("multer");
 
 const connectDB = require("./config/db");
-
 const Document = require("./models/Document");
 
 const documentRoutes = require("./routes/documentRoutes");
@@ -15,9 +14,14 @@ const { extractText } = require("./services/pdfService");
 const { chunkText } = require("./services/chunkService");
 const { generateEmbeddings } = require("./services/embeddingService");
 
+const groq = require("./services/aiService");
+
 const app = express();
 
+// ----------------------
 // Connect MongoDB
+// ----------------------
+
 connectDB();
 
 app.use(cors());
@@ -56,7 +60,7 @@ app.get("/api/message", (req, res) => {
 });
 
 // ----------------------
-// Health Check (NEW)
+// Health Check
 // ----------------------
 
 app.get("/api/health", (req, res) => {
@@ -69,8 +73,6 @@ app.get("/api/health", (req, res) => {
 // ----------------------
 // AI Test
 // ----------------------
-
-const groq = require("./services/aiService");
 
 app.get("/api/test-ai", async (req, res) => {
   try {
@@ -105,19 +107,39 @@ app.get("/api/test-ai", async (req, res) => {
 
 app.post("/api/upload", upload.single("pdf"), async (req, res) => {
   try {
+    console.log("\n==============================");
+    console.log("📄 New Upload Request");
+    console.log("==============================");
+
     if (!req.file) {
       return res.status(400).json({
+        success: false,
         message: "No PDF uploaded",
       });
     }
 
+    console.log("📁 File:", req.file.filename);
+
     const filePath = req.file.path;
 
+    console.log("📖 Extracting text...");
     const text = await extractText(filePath);
+    console.log("✅ Text Length:", text.length);
 
+    console.log("✂ Chunking...");
     const chunks = chunkText(text);
+    console.log("✅ Chunks:", chunks.length);
 
+    console.log("🧠 Generating Embeddings...");
     const embeddings = await generateEmbeddings(chunks);
+
+    console.log("✅ Embeddings Generated:", embeddings.length);
+    console.log(
+      "First Embedding Length:",
+      embeddings[0]?.embedding?.length
+    );
+
+    console.log("💾 Saving document to MongoDB...");
 
     const savedDocument = await Document.create({
       filename: req.file.filename,
@@ -126,20 +148,26 @@ app.post("/api/upload", upload.single("pdf"), async (req, res) => {
       embeddings,
     });
 
+    console.log("✅ Document Saved Successfully!");
+    console.log("MongoDB ID:", savedDocument._id);
+
     const totalDocuments = await Document.countDocuments();
+
+    console.log("📚 Total Documents:", totalDocuments);
+    console.log("==============================\n");
 
     res.json({
       success: true,
       message: "PDF uploaded successfully",
-      documentId: savedDocument._id,
-      filename: savedDocument.filename,
+      document: savedDocument,
       totalDocuments,
-      totalChunks: chunks.length,
-      totalEmbeddings: embeddings.length,
-      firstChunk: chunks[0],
     });
+
   } catch (error) {
+    console.log("\n==============================");
+    console.log("❌ UPLOAD FAILED");
     console.error(error);
+    console.log("==============================\n");
 
     res.status(500).json({
       success: false,
