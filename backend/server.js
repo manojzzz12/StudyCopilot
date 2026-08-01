@@ -5,10 +5,11 @@ const cors = require("cors");
 const multer = require("multer");
 
 const connectDB = require("./config/db");
-const Document = require("./models/Document");
-const documentRoutes = require("./routes/documentRoutes");
 
-const groq = require("./services/aiService");
+const Document = require("./models/Document");
+
+const documentRoutes = require("./routes/documentRoutes");
+const chatRoutes = require("./routes/chatRoutes");
 
 const { extractText } = require("./services/pdfService");
 const { chunkText } = require("./services/chunkService");
@@ -16,16 +17,23 @@ const { generateEmbeddings } = require("./services/embeddingService");
 
 const app = express();
 
-// Connect to MongoDB
+// Connect MongoDB
 connectDB();
 
 app.use(cors());
 app.use(express.json());
 
+// ----------------------
 // Routes
-app.use("/api/documents", documentRoutes);
+// ----------------------
 
-// Multer Storage
+app.use("/api/documents", documentRoutes);
+app.use("/api/chat", chatRoutes);
+
+// ----------------------
+// Multer Configuration
+// ----------------------
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "uploads/");
@@ -37,16 +45,22 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
+// ----------------------
 // Backend Test
+// ----------------------
+
 app.get("/api/message", (req, res) => {
   res.json({
     message: "Hello from StudyCopilot Backend!",
   });
 });
 
-// ------------------------
-// Groq Test Route
-// ------------------------
+// ----------------------
+// AI Test
+// ----------------------
+
+const groq = require("./services/aiService");
+
 app.get("/api/test-ai", async (req, res) => {
   try {
     const completion = await groq.chat.completions.create({
@@ -74,16 +88,10 @@ app.get("/api/test-ai", async (req, res) => {
   }
 });
 
-// Ask Question
-app.post("/api/ask", (req, res) => {
-  const { question } = req.body;
-
-  res.json({
-    answer: `You asked: ${question}`,
-  });
-});
-
+// ----------------------
 // Upload PDF
+// ----------------------
+
 app.post("/api/upload", upload.single("pdf"), async (req, res) => {
   try {
     if (!req.file) {
@@ -127,7 +135,10 @@ app.post("/api/upload", upload.single("pdf"), async (req, res) => {
   }
 });
 
+// ----------------------
 // Start Server
+// ----------------------
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {

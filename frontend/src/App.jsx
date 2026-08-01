@@ -71,7 +71,7 @@ function App() {
 
   const handleSend = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/ask", {
+      const response = await fetch("http://localhost:5000/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -82,7 +82,12 @@ function App() {
       });
 
       const data = await response.json();
-      setAnswer(data.answer);
+
+      if (data.success) {
+        setAnswer(data.answer);
+      } else {
+        setAnswer(data.message);
+      }
     } catch (error) {
       console.error(error);
       setAnswer("Failed to contact backend");
@@ -132,9 +137,7 @@ function App() {
         ) : (
           <ul>
             {documents.map((doc) => (
-              <li key={doc._id}>
-                📄 {doc.filename}
-              </li>
+              <li key={doc._id}>📄 {doc.filename}</li>
             ))}
           </ul>
         )}
@@ -152,13 +155,24 @@ function App() {
 
         <button onClick={handleSend}>Send</button>
 
+        <hr />
+
         <p>
           <strong>Backend Status:</strong> {message}
         </p>
 
-        <p>
-          <strong>Answer:</strong> {answer}
-        </p>
+        <h3>AI Answer</h3>
+
+        <textarea
+          value={answer}
+          readOnly
+          rows={8}
+          style={{
+            width: "100%",
+            padding: "10px",
+            resize: "vertical",
+          }}
+        />
       </div>
     </div>
   );
