@@ -41,19 +41,34 @@ function retrieveRelevantChunks(question, chunks) {
         !STOP_WORDS.includes(word)
     );
 
+  // If the question contains only stop words,
+  // use the entire question.
+  if (keywords.length === 0) {
+    return chunks.slice(0, 3);
+  }
+
   const scoredChunks = chunks.map((chunk) => {
-    const chunkText = chunk.toLowerCase();
+    const text = chunk.toLowerCase();
 
     let score = 0;
 
     keywords.forEach((keyword) => {
-      const matches = chunkText.match(
-        new RegExp(keyword, "g")
-      );
 
-      if (matches) {
-        score += matches.length;
+      // Exact match
+      if (text.includes(keyword)) {
+        score += 5;
       }
+
+      // Partial match
+      text.split(/\s+/).forEach((word) => {
+        if (
+          word.startsWith(keyword) ||
+          keyword.startsWith(word)
+        ) {
+          score += 2;
+        }
+      });
+
     });
 
     return {
@@ -64,10 +79,15 @@ function retrieveRelevantChunks(question, chunks) {
 
   scoredChunks.sort((a, b) => b.score - a.score);
 
-  return scoredChunks
-    .filter((item) => item.score > 0)
-    .slice(0, 3)
-    .map((item) => item.chunk);
+  const best = scoredChunks.filter((c) => c.score > 0);
+
+  if (best.length === 0) {
+    // Fallback:
+    // Send first few chunks instead of nothing.
+    return chunks.slice(0, 3);
+  }
+
+  return best.slice(0, 3).map((c) => c.chunk);
 }
 
 module.exports = {

@@ -6,7 +6,7 @@ const { chatWithDocument } = require("../services/chatService");
 
 router.post("/", async (req, res) => {
   try {
-    const { question } = req.body;
+    const { question, documentId } = req.body;
 
     if (!question) {
       return res.status(400).json({
@@ -16,7 +16,13 @@ router.post("/", async (req, res) => {
     }
 
     // Get the latest uploaded document
-    const document = await Document.findOne().sort({ createdAt: -1 });
+    let document;
+
+if (documentId) {
+  document = await Document.findById(documentId);
+} else {
+  document = await Document.findOne().sort({ createdAt: -1 });
+}
 
     if (!document) {
       return res.status(404).json({

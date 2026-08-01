@@ -56,6 +56,17 @@ app.get("/api/message", (req, res) => {
 });
 
 // ----------------------
+// Health Check (NEW)
+// ----------------------
+
+app.get("/api/health", (req, res) => {
+  res.json({
+    success: true,
+    status: "connected",
+  });
+});
+
+// ----------------------
 // AI Test
 // ----------------------
 
@@ -118,6 +129,7 @@ app.post("/api/upload", upload.single("pdf"), async (req, res) => {
     const totalDocuments = await Document.countDocuments();
 
     res.json({
+      success: true,
       message: "PDF uploaded successfully",
       documentId: savedDocument._id,
       filename: savedDocument.filename,
@@ -130,7 +142,9 @@ app.post("/api/upload", upload.single("pdf"), async (req, res) => {
     console.error(error);
 
     res.status(500).json({
+      success: false,
       message: "Failed to process PDF",
+      error: error.message,
     });
   }
 });

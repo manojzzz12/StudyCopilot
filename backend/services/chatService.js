@@ -1,46 +1,56 @@
 const groq = require("./aiService");
 const { retrieveRelevantChunks } = require("./retrievalService");
 
+const {
+  addMessage,
+  getHistory,
+} = require("../data/chatHistory");
+
 async function chatWithDocument(question, chunks) {
-  // Find the most relevant chunks
+  // Retrieve relevant chunks
   const relevantChunks = retrieveRelevantChunks(question, chunks);
 
-  // Join them into one context
   const context = relevantChunks.join("\n\n");
 
-  const prompt = `
+  // Store user's message
+  addMessage("user", question);
+
+  // Get previous conversation
+  const history = getHistory();
+
+  // Build messages for Groq
+  const messages = [
+    {
+      role: "system",
+      content: `
 You are StudyCopilot.
 
 Answer ONLY using the study material below.
 
-If the answer is not present in the study material, reply exactly:
+If the answer is not found in the study material, reply:
 
 "I could not find the answer in the uploaded document."
 
-==============================
-STUDY MATERIAL
-==============================
+Study Material:
 
 ${context}
+      `,
+    },
 
-==============================
-QUESTION
-==============================
-
-${question}
-`;
+    ...history,
+  ];
 
   const completion = await groq.chat.completions.create({
     model: "llama-3.3-70b-versatile",
-    messages: [
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
+    messages,
   });
 
-  return completion.choices[0].message.content;
+  const answer = completion.choices[0].message.content;
+
+  // Store AI response
+  addMessage("assistant", answer);
+
+  return answer;
 }
 
 module.exports = {
