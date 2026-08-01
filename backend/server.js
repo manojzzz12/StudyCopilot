@@ -1,9 +1,14 @@
+require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
 
 const connectDB = require("./config/db");
 const Document = require("./models/Document");
+const documentRoutes = require("./routes/documentRoutes");
+
+const groq = require("./services/aiService");
 
 const { extractText } = require("./services/pdfService");
 const { chunkText } = require("./services/chunkService");
@@ -17,7 +22,10 @@ connectDB();
 app.use(cors());
 app.use(express.json());
 
-// Multer Storage Configuration
+// Routes
+app.use("/api/documents", documentRoutes);
+
+// Multer Storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "uploads/");
@@ -29,23 +37,53 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// Test Route
+// Backend Test
 app.get("/api/message", (req, res) => {
   res.json({
     message: "Hello from StudyCopilot Backend!",
   });
 });
 
-// Ask Question Route
+// ------------------------
+// Groq Test Route
+// ------------------------
+app.get("/api/test-ai", async (req, res) => {
+  try {
+    const completion = await groq.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        {
+          role: "user",
+          content: "Say hello in one sentence.",
+        },
+      ],
+    });
+
+    res.json({
+      success: true,
+      reply: completion.choices[0].message.content,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to connect to Groq",
+      error: error.message,
+    });
+  }
+});
+
+// Ask Question
 app.post("/api/ask", (req, res) => {
-  const question = req.body.question;
+  const { question } = req.body;
 
   res.json({
     answer: `You asked: ${question}`,
   });
 });
 
-// Upload PDF Route
+// Upload PDF
 app.post("/api/upload", upload.single("pdf"), async (req, res) => {
   try {
     if (!req.file) {
@@ -56,16 +94,12 @@ app.post("/api/upload", upload.single("pdf"), async (req, res) => {
 
     const filePath = req.file.path;
 
-    // Extract text
     const text = await extractText(filePath);
 
-    // Create chunks
     const chunks = chunkText(text);
 
-    // Generate placeholder embeddings
     const embeddings = await generateEmbeddings(chunks);
 
-    // Save document to MongoDB
     const savedDocument = await Document.create({
       filename: req.file.filename,
       text,
@@ -73,7 +107,6 @@ app.post("/api/upload", upload.single("pdf"), async (req, res) => {
       embeddings,
     });
 
-    // Count total documents in database
     const totalDocuments = await Document.countDocuments();
 
     res.json({
@@ -95,6 +128,8 @@ app.post("/api/upload", upload.single("pdf"), async (req, res) => {
 });
 
 // Start Server
-app.listen(5000, () => {
-  console.log("🚀 Server running on port 5000");
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
 });

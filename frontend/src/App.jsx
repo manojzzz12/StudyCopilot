@@ -13,12 +13,26 @@ function App() {
   const [totalEmbeddings, setTotalEmbeddings] = useState(0);
   const [firstChunk, setFirstChunk] = useState("");
 
+  const [documents, setDocuments] = useState([]);
+
   useEffect(() => {
     fetch("http://localhost:5000/api/message")
       .then((res) => res.json())
       .then((data) => setMessage(data.message))
       .catch(() => setMessage("Backend not connected"));
+
+    fetchDocuments();
   }, []);
+
+  async function fetchDocuments() {
+    try {
+      const response = await fetch("http://localhost:5000/api/documents");
+      const data = await response.json();
+      setDocuments(data);
+    } catch (error) {
+      console.error(error);
+    }
+  }
 
   const handleUpload = async () => {
     try {
@@ -44,6 +58,8 @@ function App() {
         setTotalChunks(data.totalChunks);
         setTotalEmbeddings(data.totalEmbeddings);
         setFirstChunk(data.firstChunk);
+
+        fetchDocuments();
       } else {
         alert(data.message);
       }
@@ -99,13 +115,29 @@ function App() {
         <textarea
           value={firstChunk}
           readOnly
-          rows={12}
+          rows={10}
           style={{
             width: "100%",
             padding: "10px",
             resize: "vertical",
           }}
         />
+
+        <hr />
+
+        <h2>Uploaded Documents</h2>
+
+        {documents.length === 0 ? (
+          <p>No documents uploaded yet.</p>
+        ) : (
+          <ul>
+            {documents.map((doc) => (
+              <li key={doc._id}>
+                📄 {doc.filename}
+              </li>
+            ))}
+          </ul>
+        )}
 
         <hr />
 
