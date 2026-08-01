@@ -1,9 +1,9 @@
 const express = require("express");
 const router = express.Router();
 
-const groq = require("../services/aiService");
+const Document = require("../models/Document");
+const { chatWithDocument } = require("../services/chatService");
 
-// Chat with AI
 router.post("/", async (req, res) => {
   try {
     const { question } = req.body;
@@ -15,26 +15,31 @@ router.post("/", async (req, res) => {
       });
     }
 
-    const completion = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      messages: [
-        {
-          role: "user",
-          content: question,
-        },
-      ],
-    });
+    // Get the latest uploaded document
+    const document = await Document.findOne().sort({ createdAt: -1 });
+
+    if (!document) {
+      return res.status(404).json({
+        success: false,
+        message: "No document found. Please upload a PDF first.",
+      });
+    }
+
+    // Ask AI using the uploaded document
+    const answer = await chatWithDocument(question, document.chunks);
 
     res.json({
       success: true,
-      answer: completion.choices[0].message.content,
+      answer,
+      filename: document.filename,
     });
+
   } catch (error) {
     console.error(error);
 
     res.status(500).json({
       success: false,
-      message: "Failed to generate response",
+      message: "Failed to generate answer",
       error: error.message,
     });
   }
