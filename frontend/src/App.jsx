@@ -12,7 +12,8 @@ import {
 } from "lucide-react";
 
 const BACKEND_URL =
-  import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+  import.meta.env.VITE_BACKEND_URL ||
+  "https://studycopilot-backend-9vp0.onrender.com";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
