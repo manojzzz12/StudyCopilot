@@ -1,30 +1,21 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 
-app = FastAPI()
+app = FastAPI(title="StudyCopilot Embedding API")
 
-print("Loading embedding model...")
-
-model = SentenceTransformer("all-MiniLM-L6-v2")
-
+print("Loading FastEmbed model...")
+model = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
 print("Model loaded successfully!")
 
-class EmbeddingRequest(BaseModel):
+class TextRequest(BaseModel):
     text: str
 
 @app.get("/")
-def home():
-    return {
-        "message": "StudyCopilot Embedding Service Running"
-    }
+def root():
+    return {"message": "StudyCopilot Embedding API is running."}
 
 @app.post("/embed")
-def embed(request: EmbeddingRequest):
-
-    embedding = model.encode(request.text)
-
-    return {
-        "dimensions": len(embedding),
-        "embedding": embedding.tolist()
-    }
+def embed(request: TextRequest):
+    embedding = list(model.embed([request.text]))[0].tolist()
+    return {"embedding": embedding}
