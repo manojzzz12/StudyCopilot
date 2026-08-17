@@ -8,7 +8,7 @@ const {
   getHistory,
 } = require("../data/chatHistory");
 
-const EMBEDDING_API = "http://127.0.0.1:8000/embed";
+const EMBEDDING_API = process.env.EMBEDDING_API_URL;
 
 async function chatWithDocument(question, document) {
   console.log("\n==============================");
