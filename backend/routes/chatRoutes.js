@@ -15,14 +15,15 @@ router.post("/", async (req, res) => {
       });
     }
 
-    // Get the latest uploaded document
     let document;
 
-if (documentId) {
-  document = await Document.findById(documentId);
-} else {
-  document = await Document.findOne().sort({ createdAt: -1 });
-}
+    if (documentId) {
+      document = await Document.findById(documentId);
+    } else {
+      document = await Document.findOne().sort({
+        createdAt: -1,
+      });
+    }
 
     if (!document) {
       return res.status(404).json({
@@ -31,8 +32,11 @@ if (documentId) {
       });
     }
 
-    // Ask AI using the uploaded document
-    const answer = await chatWithDocument(question, document.chunks);
+    // Pass the ENTIRE document
+    const answer = await chatWithDocument(
+      question,
+      document
+    );
 
     res.json({
       success: true,

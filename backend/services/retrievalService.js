@@ -1,93 +1,45 @@
-const STOP_WORDS = [
-  "what",
-  "is",
-  "are",
-  "the",
-  "a",
-  "an",
-  "of",
-  "to",
-  "in",
-  "for",
-  "on",
-  "and",
-  "or",
-  "how",
-  "why",
-  "when",
-  "where",
-  "who",
-  "which",
-  "explain",
-  "describe",
-  "tell",
-  "about",
-  "define",
-  "give",
-];
+const { cosineSimilarity } = require("./similarityService");
 
-function retrieveRelevantChunks(question, chunks) {
-  if (!chunks || chunks.length === 0) {
+function retrieveRelevantChunks(questionEmbedding, embeddings) {
+  if (!embeddings || embeddings.length === 0) {
+    console.log("❌ No embeddings found.");
     return [];
   }
 
-  const keywords = question
-    .toLowerCase()
-    .replace(/[^\w\s]/g, "")
-    .split(/\s+/)
-    .filter(
-      (word) =>
-        word.length > 2 &&
-        !STOP_WORDS.includes(word)
+  const scoredChunks = embeddings.map((item, index) => {
+    const questionLength = questionEmbedding?.length || 0;
+    const storedLength = item.embedding?.length || 0;
+
+    console.log(
+      `Chunk ${index + 1}: Question=${questionLength}, Stored=${storedLength}`
     );
 
-  // If the question contains only stop words,
-  // use the entire question.
-  if (keywords.length === 0) {
-    return chunks.slice(0, 3);
-  }
-
-  const scoredChunks = chunks.map((chunk) => {
-    const text = chunk.toLowerCase();
-
-    let score = 0;
-
-    keywords.forEach((keyword) => {
-
-      // Exact match
-      if (text.includes(keyword)) {
-        score += 5;
-      }
-
-      // Partial match
-      text.split(/\s+/).forEach((word) => {
-        if (
-          word.startsWith(keyword) ||
-          keyword.startsWith(word)
-        ) {
-          score += 2;
-        }
-      });
-
-    });
+    const score = cosineSimilarity(
+      questionEmbedding,
+      item.embedding || []
+    );
 
     return {
-      chunk,
+      text: item.text,
       score,
     };
   });
 
   scoredChunks.sort((a, b) => b.score - a.score);
 
-  const best = scoredChunks.filter((c) => c.score > 0);
+  console.log("\n===== Top Matching Chunks =====");
 
-  if (best.length === 0) {
-    // Fallback:
-    // Send first few chunks instead of nothing.
-    return chunks.slice(0, 3);
-  }
+  scoredChunks.slice(0, 3).forEach((chunk, index) => {
+    console.log(
+      `${index + 1}. Score: ${chunk.score.toFixed(4)}`
+    );
+  });
 
-  return best.slice(0, 3).map((c) => c.chunk);
+  console.log("===============================\n");
+
+  return scoredChunks
+    .slice(0, 3)
+    .map((chunk) => chunk.text);
 }
 
 module.exports = {
