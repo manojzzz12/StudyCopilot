@@ -33,7 +33,7 @@ router.post("/", async (req, res) => {
     }
 
     // Pass the ENTIRE document
-    const answer = await chatWithDocument(
+    const { answer, sources } = await chatWithDocument(
       question,
       document,
       history
@@ -42,6 +42,7 @@ router.post("/", async (req, res) => {
     res.json({
       success: true,
       answer,
+      sources,
       filename: document.filename,
     });
 

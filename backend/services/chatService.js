@@ -31,6 +31,17 @@ async function chatWithDocument(question, document, history = []) {
     .map((chunk) => (typeof chunk === "string" ? chunk : chunk.text))
     .join("\n\n");
 
+  const sources = relevantChunks.map((chunk, index) => {
+    const text = typeof chunk === "string" ? chunk : chunk.text;
+    const preview = text.replace(/\s+/g, " ").trim();
+
+    return {
+      chunk: typeof chunk === "string" ? index + 1 : chunk.chunk,
+      score: typeof chunk === "string" ? 0 : chunk.score,
+      preview: preview.slice(0, 120),
+    };
+  });
+
   const conversationHistory = Array.isArray(history)
     ? history.filter(
         (message) =>
@@ -68,11 +79,14 @@ Rules:
 
     const answer = completion.choices[0].message.content;
 
-    return answer;
+    return { answer, sources };
   } catch (error) {
     console.error("Groq Error:", error);
 
-    return "Sorry, I couldn't generate a response right now.";
+    return {
+      answer: "Sorry, I couldn't generate a response right now.",
+      sources,
+    };
   }
 }
 

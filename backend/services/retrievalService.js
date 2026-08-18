@@ -20,6 +20,7 @@ function retrieveRelevantChunks(questionEmbedding, embeddings) {
     );
 
     return {
+      chunk: index + 1,
       text: item.text,
       score,
     };
@@ -37,9 +38,7 @@ function retrieveRelevantChunks(questionEmbedding, embeddings) {
 
   console.log("===============================\n");
 
-  return scoredChunks
-    .slice(0, 3)
-    .map((chunk) => chunk.text);
+  return scoredChunks.slice(0, 3);
 }
 
 module.exports = {

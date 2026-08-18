@@ -279,6 +279,8 @@ export default function App() {
             data.answer ||
             data.message ||
             "Failed to get response from StudyCopilot.",
+          sources: data.sources || [],
+          filename: data.filename || selectedDocument.name,
         },
       ]);
     } catch (err) {
@@ -492,7 +494,8 @@ export default function App() {
               }`}
             >
               {msg.role === "assistant" ? (
-                <ReactMarkdown
+                <>
+                  <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
                     h1: ({ node, ...props }) => (
@@ -574,9 +577,49 @@ export default function App() {
                       />
                     ),
                   }}
-                >
-                  {msg.content}
-                </ReactMarkdown>
+                  >
+                    {msg.content}
+                  </ReactMarkdown>
+                  {msg.sources?.length > 0 && (
+                    <div className="mt-5 border-t border-gray-200 pt-4">
+                      <h4 className="mb-2 text-sm font-semibold text-gray-700">
+                        Sources
+                      </h4>
+                      <div className="space-y-2">
+                        {msg.sources.map((source) => {
+                          const score = Number(source.score);
+
+                          return (
+                            <div
+                              key={`${msg.id}-${source.chunk}`}
+                              className="rounded-lg border border-gray-200 bg-gray-50 p-3 transition-colors hover:border-gray-300 hover:bg-white"
+                            >
+                              <div className="flex gap-3">
+                                <FileText
+                                  size={18}
+                                  className="mt-0.5 shrink-0 text-gray-500"
+                                />
+                                <div className="min-w-0">
+                                  <div className="flex flex-wrap items-center gap-x-2 text-sm font-medium text-gray-800">
+                                    <span className="break-all">
+                                      {msg.filename || "Uploaded document"}
+                                    </span>
+                                    <span className="text-gray-500">
+                                      — Chunk {source.chunk} ({score.toFixed(2)})
+                                    </span>
+                                  </div>
+                                  <p className="mt-1 text-sm leading-6 text-gray-600">
+                                    {source.preview}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
               ) : (
                 msg.content
               )}
