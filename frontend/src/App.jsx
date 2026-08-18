@@ -1,8 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Document as PdfDocument, Page, pdfjs } from "react-pdf";
 import {
   Bot,
+  ChevronLeft,
+  ChevronRight,
   FileText,
   Loader2,
   Search,
@@ -12,6 +15,11 @@ import {
   Menu,
   X,
 } from "lucide-react";
+
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url
+).toString();
 
 const BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL ||
@@ -25,6 +33,30 @@ const formatDate = (date) =>
     month: "short",
     year: "numeric",
   });
+
+const normalizePdfText = (text = "") =>
+  text.replace(/\s+/g, " ").trim().toLowerCase();
+
+async function findCitationPage(pdf, preview) {
+  const words = normalizePdfText(preview).split(" ").filter(Boolean);
+  const phrases = [8, 5]
+    .map((wordCount) => words.slice(0, wordCount).join(" "))
+    .filter(Boolean);
+
+  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+    const page = await pdf.getPage(pageNumber);
+    const textContent = await page.getTextContent();
+    const pageText = normalizePdfText(
+      textContent.items.map((item) => item.str).join(" ")
+    );
+
+    if (phrases.some((phrase) => pageText.includes(phrase))) {
+      return pageNumber;
+    }
+  }
+
+  return 1;
+}
 
 export default function App() {
   const fileInputRef = useRef(null);
@@ -44,6 +76,11 @@ export default function App() {
   const [apiStatus, setApiStatus] = useState("checking");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [error, setError] = useState("");
+  const [pdfViewer, setPdfViewer] = useState(null);
+  const [pdfPage, setPdfPage] = useState(1);
+  const [pdfPageCount, setPdfPageCount] = useState(0);
+  const [isLocatingCitation, setIsLocatingCitation] = useState(false);
+  const [pdfError, setPdfError] = useState("");
 
   const [chatMessages, setChatMessages] = useState([
     {
@@ -281,6 +318,7 @@ export default function App() {
             "Failed to get response from StudyCopilot.",
           sources: data.sources || [],
           filename: data.filename || selectedDocument.name,
+          documentId: data.documentId || selectedDocument.id,
         },
       ]);
     } catch (err) {
@@ -312,6 +350,36 @@ export default function App() {
       await fetchDocuments();
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const openSource = (message, source) => {
+    const documentId = message.documentId || selectedDocument?.id;
+
+    if (!documentId) return;
+
+    setPdfViewer({
+      documentId,
+      filename: message.filename || "Uploaded document",
+      preview: source.preview,
+      chunk: source.chunk,
+    });
+    setPdfPage(1);
+    setPdfPageCount(0);
+    setPdfError("");
+    setIsLocatingCitation(true);
+  };
+
+  const handlePdfLoadSuccess = async (pdf) => {
+    setPdfPageCount(pdf.numPages);
+
+    try {
+      const citedPage = await findCitationPage(pdf, pdfViewer?.preview || "");
+      setPdfPage(citedPage);
+    } catch (err) {
+      console.error("Unable to locate cited text:", err);
+    } finally {
+      setIsLocatingCitation(false);
     }
   };
 
@@ -590,9 +658,11 @@ export default function App() {
                           const score = Number(source.score);
 
                           return (
-                            <div
+                            <button
+                              type="button"
                               key={`${msg.id}-${source.chunk}`}
-                              className="rounded-lg border border-gray-200 bg-gray-50 p-3 transition-colors hover:border-gray-300 hover:bg-white"
+                              onClick={() => openSource(msg, source)}
+                              className="w-full rounded-lg border border-gray-200 bg-gray-50 p-3 text-left transition-colors hover:border-gray-300 hover:bg-white focus:outline-none focus:ring-2 focus:ring-gray-400"
                             >
                               <div className="flex gap-3">
                                 <FileText
@@ -613,7 +683,7 @@ export default function App() {
                                   </p>
                                 </div>
                               </div>
-                            </div>
+                            </button>
                           );
                         })}
                       </div>
@@ -653,6 +723,92 @@ export default function App() {
           </button>
         </form>
       </div>
+
+      {pdfViewer && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`PDF viewer for ${pdfViewer.filename}`}
+        >
+          <div className="flex h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b p-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 font-semibold">
+                  <FileText size={18} />
+                  <span className="truncate">{pdfViewer.filename}</span>
+                </div>
+                <p className="mt-1 text-sm text-gray-500">
+                  Chunk {pdfViewer.chunk}
+                  {isLocatingCitation && " · Finding cited text..."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPdfViewer(null)}
+                className="rounded-md p-2 transition-colors hover:bg-gray-100"
+                aria-label="Close PDF viewer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="border-b bg-amber-50 px-4 py-3 text-sm text-amber-950">
+              <span className="font-semibold">Cited text: </span>
+              {pdfViewer.preview}
+            </div>
+
+            <div className="flex items-center justify-between border-b px-4 py-2 text-sm">
+              <button
+                type="button"
+                onClick={() => setPdfPage((page) => Math.max(1, page - 1))}
+                disabled={pdfPage <= 1}
+                className="rounded-md p-2 disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label="Previous page"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <span>
+                Page {pdfPage}{pdfPageCount ? ` of ${pdfPageCount}` : ""}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPdfPage((page) => Math.min(pdfPageCount, page + 1))}
+                disabled={!pdfPageCount || pdfPage >= pdfPageCount}
+                className="rounded-md p-2 disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label="Next page"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-auto bg-gray-100 p-3 sm:p-6">
+              <div className="mx-auto w-fit max-w-full shadow-sm">
+                <PdfDocument
+                  file={`${BACKEND_URL}/api/documents/${pdfViewer.documentId}/file`}
+                  loading={<div className="p-8 text-sm text-gray-500">Loading PDF...</div>}
+                  onLoadSuccess={handlePdfLoadSuccess}
+                  onLoadError={(err) => {
+                    console.error(err);
+                    setPdfError("Unable to load this uploaded PDF.");
+                    setIsLocatingCitation(false);
+                  }}
+                >
+                  <Page
+                    pageNumber={pdfPage}
+                    width={Math.min(window.innerWidth - 48, 820)}
+                    renderAnnotationLayer
+                    renderTextLayer
+                  />
+                </PdfDocument>
+                {pdfError && (
+                  <div className="bg-white p-6 text-sm text-red-600">{pdfError}</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

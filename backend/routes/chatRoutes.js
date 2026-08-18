@@ -44,6 +44,7 @@ router.post("/", async (req, res) => {
       answer,
       sources,
       filename: document.filename,
+      documentId: document._id,
     });
 
   } catch (error) {
