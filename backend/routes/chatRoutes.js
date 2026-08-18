@@ -6,7 +6,7 @@ const { chatWithDocument } = require("../services/chatService");
 
 router.post("/", async (req, res) => {
   try {
-    const { question, documentId } = req.body;
+    const { question, documentId, history = [] } = req.body;
 
     if (!question) {
       return res.status(400).json({
@@ -35,7 +35,8 @@ router.post("/", async (req, res) => {
     // Pass the ENTIRE document
     const answer = await chatWithDocument(
       question,
-      document
+      document,
+      history
     );
 
     res.json({

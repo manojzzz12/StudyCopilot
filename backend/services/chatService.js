@@ -3,14 +3,9 @@ const axios = require("axios");
 const groq = require("./aiService");
 const { retrieveRelevantChunks } = require("./retrievalService");
 
-const {
-  addMessage,
-  getHistory,
-} = require("../data/chatHistory");
-
 const EMBEDDING_API = process.env.EMBEDDING_API_URL;
 
-async function chatWithDocument(question, document) {
+async function chatWithDocument(question, document, history = []) {
   console.log("\n==============================");
   console.log("💬 New Chat Request");
   console.log("==============================");
@@ -36,33 +31,32 @@ async function chatWithDocument(question, document) {
     .map((chunk) => (typeof chunk === "string" ? chunk : chunk.text))
     .join("\n\n");
 
-  // Store user's message
-  addMessage("user", question);
-
-  // Get previous conversation
-  const history = getHistory();
+  const conversationHistory = Array.isArray(history)
+    ? history.filter(
+        (message) =>
+          (message.role === "user" || message.role === "assistant") &&
+          typeof message.content === "string"
+      )
+    : [];
 
   const messages = [
     {
       role: "system",
       content: `You are StudyCopilot, an AI study assistant.
 
-Use ONLY the provided study material.
-
 Rules:
-- Give clear and concise answers.
-- If the answer requires explanation, use short paragraphs or bullet points.
-- Avoid repeating information.
-- Do not invent facts that are not present in the study material.
-- If the answer is not found in the study material, reply exactly:
-  "I could not find the answer in the uploaded document."
-
-Study Material:
-
-${context}`,
+- Prioritize the uploaded document and the retrieved document context.
+- Use the previous conversation to understand follow-up questions such as "Explain more", "Give an example", or "Continue".
+- Do not invent information that is not supported by the retrieved document context.
+- Give clear, concise answers; use short paragraphs or bullet points when helpful.
+- If the answer is not supported by the retrieved document context, reply exactly:
+  "I could not find the answer in the uploaded document."`,
     },
-
-    ...history,
+    ...conversationHistory,
+    {
+      role: "user",
+      content: `Retrieved document context:\n\n${context}\n\nCurrent question:\n${question}`,
+    },
   ];
 
   try {
@@ -73,9 +67,6 @@ ${context}`,
     });
 
     const answer = completion.choices[0].message.content;
-
-    // Store AI response
-    addMessage("assistant", answer);
 
     return answer;
   } catch (error) {
