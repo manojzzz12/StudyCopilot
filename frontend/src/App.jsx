@@ -28,13 +28,16 @@ const formatDate = (date) =>
 
 export default function App() {
   const fileInputRef = useRef(null);
+  const uploadProgressTimerRef = useRef(null);
 
   const [documents, setDocuments] = useState([]);
   const [selectedDocId, setSelectedDocId] = useState(null);
   const [question, setQuestion] = useState("");
   const [search, setSearch] = useState("");
 
-  const [uploading, setUploading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStage, setUploadStage] = useState("");
   const [asking, setAsking] = useState(false);
   const [loadingDocs, setLoadingDocs] = useState(false);
 
@@ -109,6 +112,26 @@ export default function App() {
     checkBackend();
   }, [fetchDocuments, checkBackend]);
 
+  useEffect(() => {
+    return () => {
+      if (uploadProgressTimerRef.current) {
+        clearInterval(uploadProgressTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isUploading || uploadProgress <= 35 || uploadProgress >= 100) return;
+
+    if (uploadProgress < 55) {
+      setUploadStage("Extracting text...");
+    } else if (uploadProgress < 75) {
+      setUploadStage("Generating embeddings...");
+    } else {
+      setUploadStage("Saving document...");
+    }
+  }, [isUploading, uploadProgress]);
+
   // ------------------------
   // Upload (FIXED)
   // ------------------------
@@ -117,21 +140,42 @@ export default function App() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setUploading(true);
+    setIsUploading(true);
+    setUploadProgress(10);
+    setUploadStage("Uploading PDF...");
     setError("");
 
     try {
       const formData = new FormData();
       formData.append("pdf", file);
 
-      const res = await fetch(`${BACKEND_URL}/api/upload`, {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+
+      const uploadRequest = fetch(`${BACKEND_URL}/api/upload`, {
         method: "POST",
         body: formData,
       });
 
+      setUploadProgress(35);
+      setUploadStage("Extracting text...");
+
+      uploadProgressTimerRef.current = setInterval(() => {
+        setUploadProgress((current) => {
+          const increment = current < 55 ? 4 : current < 75 ? 2 : 1;
+          return Math.min(current + increment, 90);
+        });
+      }, 700);
+
+      const res = await uploadRequest;
+
       if (!res.ok) throw new Error(`Upload failed (${res.status})`);
 
       const data = await res.json();
+
+      clearInterval(uploadProgressTimerRef.current);
+      uploadProgressTimerRef.current = null;
+      setUploadProgress(100);
+      setUploadStage("Completed");
 
       console.log("Upload Response:", data);
 
@@ -157,11 +201,20 @@ export default function App() {
           content: `Document "${uploadedName}" uploaded successfully.`,
         },
       ]);
+
+      await new Promise((resolve) => setTimeout(resolve, 800));
     } catch (err) {
       console.error(err);
       setError(err.message || "Upload failed.");
     } finally {
-      setUploading(false);
+      if (uploadProgressTimerRef.current) {
+        clearInterval(uploadProgressTimerRef.current);
+        uploadProgressTimerRef.current = null;
+      }
+
+      setIsUploading(false);
+      setUploadProgress(0);
+      setUploadStage("");
       event.target.value = "";
     }
   };
@@ -291,15 +344,16 @@ export default function App() {
 
         <div className="p-4">
           <button
-            onClick={() => fileInputRef.current.click()}
-            className="w-full flex items-center justify-center gap-2 bg-black text-white rounded-lg py-3"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="w-full flex items-center justify-center gap-2 bg-black text-white rounded-lg py-3 transition-opacity disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {uploading ? (
+            {isUploading ? (
               <Loader2 className="animate-spin" size={18} />
             ) : (
               <Upload size={18} />
             )}
-            Upload PDF
+            {isUploading ? uploadStage : "Upload PDF"}
           </button>
 
           <input
@@ -309,6 +363,28 @@ export default function App() {
             hidden
             onChange={handleFileUpload}
           />
+        </div>
+
+        <div className="min-h-16 px-4 pb-3" aria-live="polite">
+          {isUploading && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>{uploadStage}</span>
+                <span>{uploadProgress}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-gray-200">
+                <div
+                  className="h-full rounded-full bg-black transition-all duration-500 ease-out"
+                  style={{ width: `${uploadProgress}%` }}
+                  role="progressbar"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                  aria-valuenow={uploadProgress}
+                  aria-label={uploadStage}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="px-4 pb-3">
