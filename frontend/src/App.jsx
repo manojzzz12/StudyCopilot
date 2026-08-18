@@ -72,6 +72,7 @@ export default function App() {
   const [uploadStage, setUploadStage] = useState("");
   const [asking, setAsking] = useState(false);
   const [loadingDocs, setLoadingDocs] = useState(false);
+  const [deletingDocumentId, setDeletingDocumentId] = useState(null);
 
   const [apiStatus, setApiStatus] = useState("checking");
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -342,14 +343,47 @@ export default function App() {
   // ------------------------
 
   const deleteDocument = async (id) => {
+    const documentToDelete = documents.find((document) => document.id === id);
+
+    if (
+      !documentToDelete ||
+      !window.confirm(`Delete "${documentToDelete.name}"? This cannot be undone.`)
+    ) {
+      return;
+    }
+
+    setDeletingDocumentId(id);
+    setError("");
+
     try {
-      await fetch(`${BACKEND_URL}/api/documents/${id}`, {
+      const res = await fetch(`${BACKEND_URL}/api/documents/${id}`, {
         method: "DELETE",
       });
 
-      await fetchDocuments();
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to delete document.");
+      }
+
+      const deletedIndex = documents.findIndex((document) => document.id === id);
+      const remainingDocuments = documents.filter((document) => document.id !== id);
+
+      setDocuments(remainingDocuments);
+
+      if (selectedDocId === id) {
+        const nextDocument =
+          remainingDocuments[deletedIndex] ||
+          remainingDocuments[deletedIndex - 1] ||
+          null;
+
+        setSelectedDocId(nextDocument?.id || null);
+      }
     } catch (err) {
       console.error(err);
+      setError(err.message || "Failed to delete document.");
+    } finally {
+      setDeletingDocumentId(null);
     }
   };
 
@@ -510,8 +544,19 @@ export default function App() {
                       e.stopPropagation();
                       deleteDocument(doc.id);
                     }}
+                    disabled={deletingDocumentId === doc.id}
+                    className={`rounded p-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                      selectedDocId === doc.id
+                        ? "hover:bg-white/20"
+                        : "hover:bg-gray-200 hover:text-red-600"
+                    }`}
+                    aria-label={`Delete ${doc.name}`}
                   >
-                    <Trash2 size={16} />
+                    {deletingDocumentId === doc.id ? (
+                      <Loader2 className="animate-spin" size={16} />
+                    ) : (
+                      <Trash2 size={16} />
+                    )}
                   </button>
                 </div>
               </div>
