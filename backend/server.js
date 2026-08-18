@@ -7,10 +7,12 @@ const path = require("path");
 const fs = require("fs");
 
 const connectDB = require("./config/db");
-
-const uploadRoutes = require("./routes/uploadRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 const documentRoutes = require("./routes/documentRoutes");
+const Document = require("./models/Document");
+const { extractText } = require("./services/pdfService");
+const { chunkText } = require("./services/chunkService");
+const { generateEmbeddings } = require("./services/embeddingService");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -58,9 +60,6 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// Make upload middleware available to routes
-app.locals.upload = upload;
-
 // ------------------------------
 // Health Check
 // ------------------------------
@@ -84,9 +83,45 @@ app.get("/api/message", (req, res) => {
 // ------------------------------
 // API Routes
 // ------------------------------
-app.use("/api/upload", uploadRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/documents", documentRoutes);
+
+app.post("/api/upload", upload.single("pdf"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "No PDF uploaded",
+      });
+    }
+
+    const text = await extractText(req.file.path);
+    const chunks = chunkText(text);
+    const embeddings = await generateEmbeddings(chunks);
+
+    const document = await Document.create({
+      filename: req.file.filename,
+      text,
+      chunks,
+      embeddings,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "PDF uploaded successfully",
+      documentId: document._id,
+      filename: document.filename,
+    });
+  } catch (error) {
+    console.error("Upload failed:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to process PDF",
+      error: error.message,
+    });
+  }
+});
 
 // ------------------------------
 // Root Route
