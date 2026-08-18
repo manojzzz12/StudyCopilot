@@ -360,7 +360,25 @@ export default function App() {
         method: "DELETE",
       });
 
-      const data = await res.json();
+      const responseText = await res.text();
+      let data = {};
+
+      if (responseText) {
+        try {
+          data = JSON.parse(responseText);
+        } catch {
+          const responseSnippet = responseText
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 160);
+
+          throw new Error(
+            `Delete failed (${res.status} ${res.statusText}): ${
+              responseSnippet || "Non-JSON response"
+            }`
+          );
+        }
+      }
 
       if (!res.ok) {
         throw new Error(data.message || "Failed to delete document.");
