@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   Bot,
   FileText,
@@ -413,7 +415,95 @@ export default function App() {
                   : "bg-white border"
               }`}
             >
-              {msg.content}
+              {msg.role === "assistant" ? (
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    h1: ({ node, ...props }) => (
+                      <h1
+                        className="mb-3 mt-6 text-2xl font-bold tracking-tight first:mt-0"
+                        {...props}
+                      />
+                    ),
+                    h2: ({ node, ...props }) => (
+                      <h2
+                        className="mb-3 mt-5 text-xl font-semibold tracking-tight first:mt-0"
+                        {...props}
+                      />
+                    ),
+                    h3: ({ node, ...props }) => (
+                      <h3
+                        className="mb-2 mt-4 text-lg font-semibold first:mt-0"
+                        {...props}
+                      />
+                    ),
+                    p: ({ node, ...props }) => (
+                      <p className="mb-3 leading-7 last:mb-0" {...props} />
+                    ),
+                    ul: ({ node, ...props }) => (
+                      <ul
+                        className="mb-3 list-disc space-y-1 pl-6 last:mb-0"
+                        {...props}
+                      />
+                    ),
+                    ol: ({ node, ...props }) => (
+                      <ol
+                        className="mb-3 list-decimal space-y-1 pl-6 last:mb-0"
+                        {...props}
+                      />
+                    ),
+                    li: ({ node, ...props }) => (
+                      <li className="pl-1 leading-7" {...props} />
+                    ),
+                    pre: ({ node, ...props }) => (
+                      <pre
+                        className="my-4 overflow-x-auto rounded-lg bg-slate-950 p-4 text-sm text-slate-100"
+                        {...props}
+                      />
+                    ),
+                    code: ({ node, className, ...props }) => (
+                      <code
+                        className={
+                          className ||
+                          "rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[0.85em] text-slate-800"
+                        }
+                        {...props}
+                      />
+                    ),
+                    table: ({ node, ...props }) => (
+                      <div className="my-4 overflow-x-auto rounded-lg border border-slate-200">
+                        <table
+                          className="w-full border-collapse text-left text-sm"
+                          {...props}
+                        />
+                      </div>
+                    ),
+                    th: ({ node, ...props }) => (
+                      <th
+                        className="border-b border-slate-200 bg-slate-50 px-3 py-2 font-semibold"
+                        {...props}
+                      />
+                    ),
+                    td: ({ node, ...props }) => (
+                      <td
+                        className="border-b border-slate-100 px-3 py-2 align-top last:border-b-0"
+                        {...props}
+                      />
+                    ),
+                    input: ({ node, ...props }) => (
+                      <input
+                        className="mr-2 accent-slate-900"
+                        disabled
+                        {...props}
+                      />
+                    ),
+                  }}
+                >
+                  {msg.content}
+                </ReactMarkdown>
+              ) : (
+                msg.content
+              )}
             </div>
           ))}
         </div>
