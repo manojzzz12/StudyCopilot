@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+{`import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bot,
   FileText,
@@ -65,8 +65,7 @@ export default function App() {
     setLoadingDocs(true);
 
     try {
-      const res = await fetch(`${BACKEND_URL}/api/documents`);
-
+      const res = await fetch(\`\${BACKEND_URL}/api/documents\`);
       const data = await res.json();
 
       const docs = data.map((doc) => ({
@@ -78,7 +77,6 @@ export default function App() {
       }));
 
       setDocuments(docs);
-
       setSelectedDocId((prev) => prev || docs[0]?.id || null);
     } catch (err) {
       console.error(err);
@@ -94,7 +92,7 @@ export default function App() {
 
   const checkBackend = useCallback(async () => {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/health`);
+      const res = await fetch(\`\${BACKEND_URL}/api/health\`);
 
       if (!res.ok) throw new Error();
 
@@ -110,7 +108,7 @@ export default function App() {
   }, [fetchDocuments, checkBackend]);
 
   // ------------------------
-  // Upload
+  // Upload (FIXED)
   // ------------------------
 
   const handleFileUpload = async (event) => {
@@ -124,12 +122,12 @@ export default function App() {
       const formData = new FormData();
       formData.append("pdf", file);
 
-      const res = await fetch(`${BACKEND_URL}/api/upload`, {
+      const res = await fetch(\`\${BACKEND_URL}/api/upload\`, {
         method: "POST",
         body: formData,
       });
 
-      if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+      if (!res.ok) throw new Error(\`Upload failed (\${res.status})\`);
 
       const data = await res.json();
 
@@ -138,15 +136,23 @@ export default function App() {
       // Reload documents from MongoDB
       await fetchDocuments();
 
-      // Select the newly uploaded document
-      setSelectedDocId(data.documentId);
+      // Select uploaded document if backend returns an ID
+      if (data.documentId) {
+        setSelectedDocId(data.documentId);
+      }
+
+      // Never show "undefined"
+      const uploadedName =
+        data.filename ||
+        data.document?.filename ||
+        file.name;
 
       setChatMessages((prev) => [
         ...prev,
         {
           id: uid(),
           role: "assistant",
-          content: `Document "${data.filename}" uploaded successfully.`,
+          content: \`Document "\${uploadedName}" uploaded successfully.\`,
         },
       ]);
     } catch (err) {
@@ -187,7 +193,7 @@ export default function App() {
         documentId: selectedDocument.id,
       });
 
-      const res = await fetch(`${BACKEND_URL}/api/chat`, {
+      const res = await fetch(\`\${BACKEND_URL}/api/chat\`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -235,7 +241,7 @@ export default function App() {
 
   const deleteDocument = async (id) => {
     try {
-      await fetch(`${BACKEND_URL}/api/documents/${id}`, {
+      await fetch(\`\${BACKEND_URL}/api/documents/\${id}\`, {
         method: "DELETE",
       });
 
@@ -254,9 +260,7 @@ export default function App() {
       {/* Sidebar */}
 
       <div
-        className={`${
-          sidebarOpen ? "w-80" : "w-0"
-        } transition-all bg-white border-r overflow-hidden`}
+        className={\`\${sidebarOpen ? "w-80" : "w-0"} transition-all bg-white border-r overflow-hidden\`}
       >
         <div className="p-5 border-b">
           <div className="flex items-center justify-between">
@@ -320,11 +324,11 @@ export default function App() {
               <div
                 key={doc.id}
                 onClick={() => setSelectedDocId(doc.id)}
-                className={`p-3 rounded-lg mb-2 cursor-pointer border ${
+                className={\`p-3 rounded-lg mb-2 cursor-pointer border \${
                   selectedDocId === doc.id
                     ? "bg-black text-white"
                     : "bg-white hover:bg-gray-100"
-                }`}
+                }\`}
               >
                 <div className="flex justify-between items-start gap-2">
                   <div className="flex gap-2">
@@ -335,11 +339,11 @@ export default function App() {
                       </div>
 
                       <div
-                        className={`text-xs ${
+                        className={\`text-xs \${
                           selectedDocId === doc.id
                             ? "text-gray-300"
                             : "text-gray-500"
-                        }`}
+                        }\`}
                       >
                         {formatDate(doc.uploadedAt)}
                       </div>
@@ -380,7 +384,7 @@ export default function App() {
 
             <div className="text-sm text-gray-500">
               {selectedDocument
-                ? `${selectedDocument.pages} chunks`
+                ? \`\${selectedDocument.pages} chunks\`
                 : "Upload a PDF to begin"}
             </div>
           </div>
@@ -396,11 +400,11 @@ export default function App() {
           {chatMessages.map((msg) => (
             <div
               key={msg.id}
-              className={`max-w-3xl p-4 rounded-xl ${
+              className={\`max-w-3xl p-4 rounded-xl \${
                 msg.role === "user"
                   ? "bg-black text-white ml-auto"
                   : "bg-white border"
-              }`}
+              }\`}
             >
               {msg.content}
             </div>
@@ -435,4 +439,4 @@ export default function App() {
       </div>
     </div>
   );
-}
+}`}
